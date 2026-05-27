@@ -1,0 +1,2918 @@
+import { useRef, useState, useEffect } from "react";
+import { useBlogContext } from "../../fetchdata/BlogContext";
+import Header from "../components/Header"; // Replace this with your Header component
+import Footer from "../components/Footer";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-hot-toast";
+import axios from "axios";
+import { Swiper, SwiperSlide } from "swiper/react";
+
+// Import Swiper styles
+import "swiper/css";
+import "swiper/css/pagination";
+import "swiper/css/navigation";
+
+// import required modules
+import { Pagination, Navigation } from "swiper/modules";
+import RangeSlider from "../components/extra/RangeSlider";
+
+const Category = () => {
+  const startMin = 0;
+  const startMax = 100;
+  const min = 0;
+  const max = 200;
+  const step = 1;
+
+  const [selectedFilters, setSelectedFilters] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [Cat, setCat] = useState([]);
+  const [CatT, setTCat] = useState("");
+  const [Pro, setPro] = useState([]);
+  const [Attr, setAttr] = useState([]);
+  const [fillter, setfillter] = useState('');
+
+  const [isCat, setIsCat] = useState(true);
+
+  const { id } = useParams();
+
+
+  const getCategory = async (fillter, page) => {
+    try {
+      setIsCat(true);
+      const encodedFilter = encodeURIComponent(fillter); // Encode the filter string
+  
+      const { data } = await axios.get(`/admin/category/${id}?filter=${encodedFilter}&page=${page}&perPage=100`);
+      setCat([]);
+      setTCat("");
+      setPro([]);
+      if (data?.success) {
+        setCat(data?.categories);
+        setTCat(data.MainCat.title);
+        setPro(data?.products);
+        setTotalPages(data?.proLength);
+        setfillter(fillter);
+        console.log(data);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error("Error fetching Category!");
+    } finally {
+      setIsCat(false);
+    }
+  };
+  
+
+ 
+  const getAttribute = async () => {
+    try {
+      const { data } = await axios.get("/all-attribute");
+      console.log("attr", data);
+      setAttr(data.Attribute);
+    } catch (error) {
+      console.error("Error fetching attributes:", error);
+    }
+  };
+
+  // Function to handle checkbox selection
+  const handleCheckboxChange = (event) => {
+    const { value, checked } = event.target;
+    setSelectedFilters((prevState) => {
+      // If checked, add the value to selectedFilters, otherwise remove it
+      if (checked) {
+        return { ...prevState, [value]: checked };
+      } else {
+        const { [value]: removedValue, ...rest } = prevState;
+        return rest;
+      }
+    });
+  };
+
+const generateQueryString = () => {
+  const filterObj = {};
+
+  // Construct filter object from selected filters
+  Object.entries(selectedFilters).forEach(([key, value]) => {
+    const [attrKey, attrValue] = key.split(",");
+    filterObj[attrKey] = attrValue;
+  });
+
+  // Convert filter object to JSON string
+  const filterString = JSON.stringify(filterObj);
+
+  console.log(filterString); // Output the generated filter string
+  setCurrentPage(1);
+  getCategory(filterString, 1);
+};
+
+  const handleCategoryLinkClick = (categoryId) => {
+     getCategory(fillter,currentPage);
+  };
+
+  useEffect(() => {
+    setIsCat(true); // Set loading state to true
+    getAttribute();
+    getCategory(fillter,currentPage);
+  }, [id,currentPage]); // Empty dependency array ensures that the effect runs once after the initial render
+
+  useEffect(() => {
+    generateQueryString(); // Call generateQueryString when selectedFilters change
+  }, [selectedFilters]); // Add selectedFilters as a dependency
+
+  // Function to filter products based on selected attributes
+
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 100 });
+
+  function handleChange(e) {
+    setPriceRange({
+      priceRange,
+      [e.target.name]: parseInt(e.target.value),
+    });
+  }
+
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+  
+  return (
+    <>
+      <Header />
+      <div className="whitesmoke">
+        {/* Page Title */}
+        <div
+          className="py-4 mb-4 mb-lg-10 white"
+          style={{ backgroundColor: "whitesmoke" }}
+        >
+          <div className="container d-lg-flex justify-content-between align-items-center py-2 py-lg-4">
+            <div className="pe-lg-4 text-center text-lg-start">
+              <h1 className="h3 mb-0">Shop  {CatT ? <>  {CatT}  </> :<> </>} Category </h1>
+            </div>
+            <div className="pt-2 pt-lg-0">
+              <nav aria-label="breadcrumb">
+                <ol className="breadcrumb flex-lg-nowrap justify-content-center justify-content-lg-start">
+                  <li className="breadcrumb-item">
+                    <a className="text-nowrap" href="index.html">
+                      <i className="ri-store-2-line" /> Home{" "}
+                    </a>
+                  </li>
+                  <li className="breadcrumb-item text-nowrap">
+                    <a href="blog-list.html">Shop</a>
+                  </li>
+                  <li
+                    className="breadcrumb-item text-nowrap active"
+                    aria-current="page"
+                  >
+                    Category left sidebar
+                  </li>
+                </ol>
+              </nav>
+            </div>
+          </div>
+        </div>
+        {/* Page Title */}
+        {/* Product Category */}
+        <div className="container pb-4 pb-lg-10">
+          <div className="row g-lg-4">
+            {/* Sidebar */}
+            <div className="col-lg-4">
+              <div
+                className="offcanvas offcanvas-collapse offcanvas-start rounded-3 shadow"
+                id="category-sidebar"
+                style={{ maxWidth: "23rem" }}
+              >
+                <div className="offcanvas-header align-items-center shadow-sm">
+                  <h2 className="h5 mb-0">Filters</h2>
+                  <button
+                    className="btn-close ms-auto"
+                    type="button"
+                    data-bs-dismiss="offcanvas"
+                    aria-label="Close"
+                  />
+                </div>
+                <div className="offcanvas-body p-lg-8">
+                  {/* Categories */}
+                  <div className="widget widget-categories pb-5 mb-5 border-bottom">
+                    {/* Price Range Slider */}
+                    <div className="widget pb-5 mb-5 border-bottom">
+                      <h3 className="widget-title">Price</h3>
+
+                      <RangeSlider
+                        startMin={startMin}
+                        startMax={startMax}
+                        min={min}
+                        max={max}
+                        step={step}
+                      />
+                    </div>
+                    {/* Price Range Slider */}
+                    <h3 className="widget-title">Categories</h3>
+
+                    {Attr.length > 0 ? (
+                      <>
+                        {Attr.map((row, index) => (
+                          <>
+                            {row.name === "Color" ? (
+                              <>
+                                <label>Colours</label>
+                                <div className="color-options">
+                                  {row.value.map((value, index) => (
+                                    <>
+                                      <label key={index}>
+                                        <input
+                                          type="checkbox"
+                                          style={{ display: "none" }}
+                                          name="color"
+                                          value={`${row.name},${value}`}
+                                          onChange={handleCheckboxChange}
+                                        />
+
+                                        <span
+                                          className="color-circle"
+                                          style={{
+                                            backgroundColor: `${row.color[index]}`,
+                                          }}
+                                        ></span>
+                                        <span className="hovercolor">
+                                          {value}
+                                        </span>
+                                      </label>
+                                    </>
+                                  ))}
+                                </div>
+                                <hr />
+                              </>
+                            ) : (
+                              <div className="accordion-item">
+                                <h2
+                                  className="accordion-header"
+                                  id={`heading₹{index + 1}`}
+                                >
+                                  <button
+                                    className="accordion-button"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target={`#collapseOne${index + 1}`}
+                                    aria-expanded="true"
+                                    aria-controls="collapseOne"
+                                  >
+                                    {row.name}
+                                  </button>
+                                </h2>
+
+                                {/* Trend */}
+
+                                <div
+                                  id={`collapseOne${index + 1}`}
+                                  className="accordion-collapse collapse show"
+                                  aria-labelledby={`heading₹{index + 1}`}
+                                >
+                                  <div className="accordion-body">
+                                    <ul className="widget-list pt-1">
+                                      {row.value.map((val, index) => (
+                                        <>
+                                          {" "}
+                                          <li className="mb-1">
+                                            <div className="form-check">
+                                              <input
+                                                className="form-check-input"
+                                                type="checkbox"
+                                                value={`${row.name},${val}`}
+                                                onChange={handleCheckboxChange}
+                                                id={`checkbox-${index}${row._id}`}
+                                              />
+                                              <label
+                                                className="form-check-label"
+                                                htmlFor={`checkbox-${index}${row._id}`}
+                                              >
+                                                {" "}
+                                                {val}
+                                              </label>
+                                            </div>
+                                          </li>
+                                        </>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        ))}
+                      </>
+                    ) : (
+                      <div> Loading .....</div>
+                    )}
+
+                    <div className="accordion mt-n2" id="shop-categories">
+                      {/* Computers */}
+                      <div className="accordion-item">
+                        <h3 className="accordion-header">
+                          <a
+                            className="accordion-button"
+                            href="#category-computers"
+                            role="button"
+                            data-bs-toggle="collapse"
+                            aria-expanded="true"
+                            aria-controls="category-computers"
+                          >
+                            Computers
+                          </a>
+                        </h3>
+                        <div
+                          className="accordion-collapse collapse show"
+                          id="category-computers"
+                          data-bs-parent="#shop-categories"
+                        >
+                          <div className="accordion-body">
+                            <div className="widget widget-links border-start">
+                              <ul className="widget-list">
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Accessories</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      414
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Computer Cases</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      138
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Processors</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      162
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Video Cards</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      235
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Memory</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      245
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Motherboards</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      189
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Power Supplies</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      228
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Sound Cards</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      92
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Other</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      267
+                                    </span>
+                                  </a>
+                                </li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Computers */}
+                      {/* Cameras */}
+                      <div className="accordion-item">
+                        <h3 className="accordion-header">
+                          <a
+                            className="accordion-button collapsed"
+                            href="#category-cameras"
+                            role="button"
+                            data-bs-toggle="collapse"
+                            aria-expanded="false"
+                            aria-controls="category-cameras"
+                          >
+                            Cameras &amp; Photography
+                          </a>
+                        </h3>
+                        <div
+                          className="accordion-collapse collapse"
+                          id="category-cameras"
+                          data-bs-parent="#shop-categories"
+                        >
+                          <div className="accordion-body">
+                            <div className="widget widget-links border-start">
+                              <ul className="widget-list">
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Action Cameras</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      436
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Camcorders</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      352
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Camera Drones</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      189
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Digital Cameras</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      68
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Camera Consumables</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      72
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Other</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      137
+                                    </span>
+                                  </a>
+                                </li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Cameras */}
+                      {/* Mobiles & Tablets */}
+                      <div className="accordion-item">
+                        <h3 className="accordion-header">
+                          <a
+                            className="accordion-button collapsed"
+                            href="#category-mobiles"
+                            role="button"
+                            data-bs-toggle="collapse"
+                            aria-expanded="false"
+                            aria-controls="category-mobiles"
+                          >
+                            {" "}
+                            Mobiles &amp; Tablets{" "}
+                          </a>
+                        </h3>
+                        <div
+                          className="accordion-collapse collapse"
+                          id="category-mobiles"
+                          data-bs-parent="#shop-categories"
+                        >
+                          <div className="accordion-body">
+                            <div className="widget widget-links border-start">
+                              <ul className="widget-list">
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Smartphones</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      325
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Tablets</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      64
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Refurbished</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      92
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Cases</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      173
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Accessories</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      96
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Other</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      475
+                                    </span>
+                                  </a>
+                                </li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Mobiles & Tablets */}
+                      {/* TV & Audio */}
+                      <div className="accordion-item">
+                        <h3 className="accordion-header">
+                          <a
+                            className="accordion-button collapsed"
+                            href="#category-tv"
+                            role="button"
+                            data-bs-toggle="collapse"
+                            aria-expanded="false"
+                            aria-controls="category-tv"
+                          >
+                            {" "}
+                            TV &amp; Audio{" "}
+                          </a>
+                        </h3>
+                        <div
+                          className="accordion-collapse collapse"
+                          id="category-tv"
+                          data-bs-parent="#shop-categories"
+                        >
+                          <div className="accordion-body">
+                            <div className="widget widget-links border-start">
+                              <ul className="widget-list">
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Accessories</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      173
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Televisions</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      325
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Headphones</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      64
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Speakers</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      92
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Other</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      475
+                                    </span>
+                                  </a>
+                                </li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {/* TV & Audio */}
+                      {/* Entertainment */}
+                      <div className="accordion-item">
+                        <h3 className="accordion-header">
+                          <a
+                            className="accordion-button collapsed"
+                            href="#category-entertainment"
+                            role="button"
+                            data-bs-toggle="collapse"
+                            aria-expanded="false"
+                            aria-controls="category-entertainment"
+                          >
+                            {" "}
+                            Entertainment{" "}
+                          </a>
+                        </h3>
+                        <div
+                          className="accordion-collapse collapse"
+                          id="category-entertainment"
+                          data-bs-parent="#shop-categories"
+                        >
+                          <div className="accordion-body">
+                            <div className="widget widget-links border-start">
+                              <ul className="widget-list">
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Accessories</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      273
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Consoles</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      348
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Video Games</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      164
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item border-bottom pb-2">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Music</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      192
+                                    </span>
+                                  </a>
+                                </li>
+                                <li className="widget-list-item">
+                                  <a
+                                    className="widget-list-link d-flex justify-content-between align-items-center"
+                                    href="#"
+                                  >
+                                    <span>Other</span>
+                                    <span className="fs-xs text-body-secondary ms-2">
+                                      435
+                                    </span>
+                                  </a>
+                                </li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Entertainment */}
+                    </div>
+                  </div>
+                  {/* Categories */}
+                </div>
+              </div>
+            </div>
+            {/* Sidebar */}
+            {/* Content */}
+
+            <aside className="col-lg-8">
+              <div className="row mt-4 pt-2 mx-n2 hero-swiper ">
+                <Swiper
+                  breakpoints={{
+                    300: {
+                      slidesPerView: 2,
+                      spaceBetween: 10, // Set the gap between slides for window width <= 400px
+                    },
+                    768: {
+                      slidesPerView: 2,
+                      spaceBetween: 20, // Set the gap between slides for window width <= 768px
+                    },
+                    992: {
+                      slidesPerView: 3,
+                      spaceBetween: 25, // Set the gap between slides for window width <= 992px
+                    },
+                    1200: {
+                      slidesPerView: 4,
+                      spaceBetween: 25, // Set the gap between slides for window width <= 1200px
+                    },
+                  }}
+                  navigation={false}
+                  pagination={true}
+                  modules={[Pagination, Navigation]}
+                  className="swiper-wrapper"
+                >
+                  {/* Product Card */}
+                  {isCat
+                    ? Array.from({ length: 4 }).map((_, index) => (
+                      <SwiperSlide>
+                          <div
+                            className="card-1 skeleton"
+                            style={{ height: 213, borderRadius: 20 }}
+                          ></div>
+                        </SwiperSlide>
+                      ))
+                    : Cat.map((Cat) => (
+                        <>
+                          <div className="col-md-3">
+                            <SwiperSlide>
+                              <Link onClick={() => handleCategoryLinkClick(Cat._id)} to={`/category/${Cat._id}`} class="card">
+                                <img
+                                  src={Cat.image}
+                                  className="w-100 rounded"
+                                />
+                                <h5 class=" mt-4 text-center">{Cat.title}</h5>
+                              </Link>
+                            </SwiperSlide>
+                          </div>
+                        </>
+                      ))}
+                </Swiper>
+              </div>
+
+              {/* Recommended Products Slider */}
+              {/* Toolbar */}
+              <div
+                className="card mt-5 mb-10"
+                style={{ backgroundColor: "white" }}
+              >
+                <div className="card-body">
+                  <div className="d-flex align-items-center justify-content-between">
+                    <form className="row row-cols-auto g-4 align-items-center me-3">
+                      <div className="col">
+                        <div className="row g-2">
+                          <label
+                            htmlFor="sorting"
+                            className="col-auto col-form-label d-none d-sm-block"
+                          >
+                            Sort by:
+                          </label>
+                          <div className="col-auto">
+                            <select className="form-select" id="sorting">
+                              <option selected="">Name</option>
+                              <option>Rating</option>
+                              <option>Price ↑</option>
+                              <option>Price ↓</option>
+                              <option>Popularity</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </form>
+                    <ul
+                      className="nav nav-pills flex-nowrap"
+                      id="pills-tab"
+                      role="tablist"
+                    >
+                      <li className="nav-item" role="presentation">
+                        <button
+                          className="nav-link active py-2 px-3"
+                          id="pills-home-tab"
+                          data-bs-toggle="pill"
+                          data-bs-target="#pills-home"
+                          type="button"
+                          role="tab"
+                          aria-controls="pills-home"
+                          aria-selected="true"
+                        >
+                          <i className="ri-function-line fs-5" />
+                        </button>
+                      </li>
+                      <li className="nav-item" role="presentation">
+                        <button
+                          className="nav-link py-2 px-3"
+                          id="pills-profile-tab"
+                          data-bs-toggle="pill"
+                          data-bs-target="#pills-profile"
+                          type="button"
+                          role="tab"
+                          aria-controls="pills-profile"
+                          aria-selected="false"
+                        >
+                          <i className="ri-list-check fs-5" />
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              {/* Toolbar */}
+              {/* Heading */}
+              <h2 className="h3 border-bottom pb-4 mb-4">
+                Results for   {CatT ? <>  {CatT}  </> :<> loading.. </>}
+              </h2>
+              {/* Heading */}
+              <div className="tab-content" id="pills-tabContent">
+                {/* Product Grid */}
+                <div
+                  className="tab-pane fade show active"
+                  id="pills-home"
+                  role="tabpanel"
+                  aria-labelledby="pills-home-tab"
+                >
+                  {/* Product Cards */}
+                  <div className="row pt-2 mx-n2 mb-4 mb-sm-8">
+                    {isCat
+                      ? Array.from({ length: 6 }).map((_, index) => (
+                          <div
+                            key={index}
+                            className="col-lg-4 col-md-4 col-sm-6 mt-4"
+                          >
+                            <div
+                              className="card-1 skeleton"
+                              style={{ height: 430, borderRadius: 5 }}
+                            ></div>
+                          </div>
+                        ))
+                      : Pro.map((Pro) => (
+                          <>
+                            {/* Product */}
+                            <div className="col-sm-6 col-md-4 px-2 mb-4">
+                              <div className="card card-product h-100">
+                                {/* Badges */}
+                                <div className="product-badges">
+                                  <span className="badge bg-danger">12%</span>
+                                  <span className="badge bg-success">Top</span>
+                                </div>
+                                {/* Badges */}
+                                {/* Buttons */}
+                                <div className="product-buttons">
+                                  <button
+                                    className="btn-product btn-wishlist"
+                                    type="button"
+                                    data-bs-toggle="button"
+                                    title="Add to wishlist"
+                                  >
+                                    <i className="ri-heart-line" />
+                                  </button>
+                                  <Link
+                                    className="btn-product btn-compare"
+                                    href="#"
+                                    title="Compare product"
+                                  >
+                                    <i className="ri-repeat-line" />
+                                  </Link>
+                                </div>
+                                {/* Buttons */}
+                                {/* Preview Image */}
+                                <Link
+                                  to={`/product/${Pro._id}`}
+                                  className="card-img-top d-block overflow-hidden flex-shrink-0"
+                                >
+                                  <img
+                                    className="img-fluid"
+                                    src={Pro.pImage}
+                                    alt="Product"
+                                  />
+                                </Link>
+                                {/* Preview Image */}
+                                <div className="card-body d-flex flex-column align-items-start flex-grow-1 h-100 py-3">
+                                  {/* Product Category */}
+                                  <a
+                                    className="product-category d-block fs-sm pb-1"
+                                    href="#"
+                                  >
+                                    Smartphones
+                                  </a>
+                                  {/* Product Category */}
+                                  {/* Product Title */}
+                                  <h3 className="product-title flex-grow-1">
+                                    <Link to={`/product/${Pro._id}`}>
+                                      {" "}
+                                      {Pro.title}{" "}
+                                    </Link>
+                                  </h3>
+
+                                  {/* Product Title */}
+                                  {/* Star Rating */}
+                                  <span className="star-rating star-8" />
+                                  {/* Star Rating */}
+                                  {/* Product Price */}
+                                  <div className="product-price">
+                                    <span className="text-danger fs-5">
+                                      ₹{Pro.salePrice}
+                                      <del className="text-body-secondary ms-1">
+                                        <small>₹{Pro.regularPrice}</small>
+                                      </del>
+                                    </span>
+                                  </div>
+                                  {/* Product Price */}
+                                  {/* Product Meta */}
+
+                                  {/* Product Meta */}
+                                </div>
+                                {/* Product Addon */}
+
+                                {/* Product Addon */}
+                              </div>
+                            </div>
+                            {/* Product */}
+                          </>
+                        ))}
+
+                    {Pro.length === 0 && (
+                    <div
+                    className="container mx-auto my-2 mt-5 py-2 bg-white text-center"
+                    style={{
+                      height: 193,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                  >
+                    <p>No products found for this category.</p>
+                  </div>
+                  
+                    )}
+
+                    <hr className="d-none d-sm-block" />
+                    {/* Pagination */}
+                    {/* 
+              <div className="d-flex justify-content-between mt-6">
+                <ul className="pagination">
+                  <li className="page-item">
+                    <a className="page-link" href="#">
+                      <i className="ri-arrow-left-s-line me-1" />
+                      Prev
+                    </a>
+                  </li>
+                </ul>
+                <ul className="pagination">
+                  <li className="page-item d-sm-none">
+                    <span className="page-link page-link-static">1 / 5</span>
+                  </li>
+                  <li
+                    className="page-item active d-none d-sm-block"
+                    aria-current="page"
+                  >
+                    <span className="page-link">
+                      1<span className="visually-hidden">(current)</span>
+                    </span>
+                  </li>
+                  <li className="page-item d-none d-sm-block">
+                    <a className="page-link" href="#">
+                      2
+                    </a>
+                  </li>
+                  <li className="page-item d-none d-sm-block">
+                    <a className="page-link" href="#">
+                      3
+                    </a>
+                  </li>
+                  <li className="page-item d-none d-sm-block">
+                    <a className="page-link" href="#">
+                      4
+                    </a>
+                  </li>
+                  <li className="page-item d-none d-sm-block">
+                    <a className="page-link" href="#">
+                      5
+                    </a>
+                  </li>
+                </ul>
+                <ul className="pagination">
+                  <li className="page-item">
+                    <a className="page-link" href="#" aria-label="Next">
+                      Next
+                      <i className="ms-1 ri-arrow-right-s-line" />
+                    </a>
+                  </li>
+                </ul>
+              </div> */}
+
+                  
+
+<div className="d-flex justify-content-between mt-6">
+        <ul className="pagination">
+          <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+            <button className="page-link" type="button" onClick={() => handlePageChange(currentPage - 1)}><i className="ri-arrow-left-s-line me-1"></i>Prev</button>
+          </li>
+        </ul>
+        {/* <ul className="pagination">
+          {Array.from({ length: totalPages }, (_, index) => (
+            <li className={`page-item ${currentPage === index + 1 ? 'active' : ''}`} key={index}>
+              <button className="page-link"  type="button" onClick={() => handlePageChange(index + 1)}>{index + 1}</button>
+            </li>
+          ))}
+        </ul> */}
+        <ul className="pagination">
+          <li className={`page-item ${totalPages === 0 ? 'disabled' : ''}`}>
+            <button className="page-link"  type="button" onClick={() => handlePageChange(currentPage + 1)} aria-label="Next">Next<i className="ms-1 ri-arrow-right-s-line"></i></button>
+          </li>
+        </ul>
+      </div>
+
+
+                    {/* Pagination */}
+                  </div>
+                  {/* Product Cards */}
+                </div>
+                {/* Product Grid */}
+                {/* Product List */}
+                <div
+                  className="tab-pane fade"
+                  id="pills-profile"
+                  role="tabpanel"
+                  aria-labelledby="pills-profile-tab"
+                >
+                  {/* Product */}
+                  <div className="card card-product product-list">
+                    {/* Badges */}
+                    <div className="product-badges">
+                      <span className="badge bg-danger">12%</span>
+                      <span className="badge bg-success">Top</span>
+                    </div>
+                    {/* Badges */}
+                    {/* Buttons */}
+                    <div className="product-buttons">
+                      <button
+                        className="btn-product btn-wishlist"
+                        type="button"
+                        data-bs-toggle="button"
+                        title="Add to wishlist"
+                      >
+                        <i className="ri-heart-line" />
+                      </button>
+                      <a
+                        className="btn-product btn-compare"
+                        href="#"
+                        title="Compare product"
+                      >
+                        <i className="ri-repeat-line" />
+                      </a>
+                      <a
+                        className="btn-product btn-view"
+                        href="#modal-quick-view"
+                        data-bs-toggle="modal"
+                        title="Quick preview"
+                      >
+                        <i className="ri-eye-line" />
+                      </a>
+                    </div>
+                    {/* Buttons */}
+                    <div className="d-sm-flex align-items-center">
+                      {/* Preview Image */}
+                      <a
+                        className="product-list-img d-block flex-shrink-0 mx-auto"
+                        href="#"
+                      >
+                        <img
+                          src="https://marketop.realthe.me/assets/img/product-card/product-pixel-4a.png"
+                          alt="Product"
+                        />
+                      </a>
+                      {/* Preview Image */}
+                      <div className="card-body">
+                        {/* Product Category */}
+                        <a
+                          className="product-category d-block fs-sm pb-1"
+                          href="#"
+                        >
+                          Smartphones
+                        </a>
+                        {/* Product Category */}
+                        {/* Product Title */}
+                        <h3 className="product-title me-sm-10">
+                          <a href="#">Google Pixel 4a 128GB Barely Blue</a>
+                        </h3>
+                        {/* Product Title */}
+                        {/* Star Rating */}
+                        <span className="star-rating star-8" />
+                        {/* Star Rating */}
+                        {/* Product Price */}
+                        <div className="product-price">
+                          <span className="text-danger fs-5">
+                            ₹349
+                            <del className="text-body-secondary ms-1">
+                              <small>₹499</small>
+                            </del>
+                          </span>
+                        </div>
+                        {/* Product Price */}
+
+                        {/* Button */}
+                        <button
+                          className="btn btn-primary btn-sm d-flex align-items-center justify-content-center mt-1"
+                          type="button"
+                        >
+                          <i className="ri-shopping-cart-2-line me-2" />
+                          Add to Cart
+                        </button>
+                        {/* Button */}
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-4" />
+                  {/* Product */}
+                  {/* Product */}
+                  <div className="card card-product product-list">
+                    {/* Badges */}
+                    <div className="product-badges">
+                      <span className="badge bg-danger">11%</span>
+                      <span className="badge bg-success">Top</span>
+                    </div>
+                    {/* Badges */}
+                    {/* Buttons */}
+                    <div className="product-buttons">
+                      <button
+                        className="btn-product btn-wishlist"
+                        type="button"
+                        data-bs-toggle="button"
+                        title="Add to wishlist"
+                      >
+                        <i className="ri-heart-line" />
+                      </button>
+                      <a
+                        className="btn-product btn-compare"
+                        href="#"
+                        title="Compare product"
+                      >
+                        <i className="ri-repeat-line" />
+                      </a>
+                      <a
+                        className="btn-product btn-view"
+                        href="#modal-quick-view"
+                        data-bs-toggle="modal"
+                        title="Quick preview"
+                      >
+                        <i className="ri-eye-line" />
+                      </a>
+                    </div>
+                    {/* Buttons */}
+                    <div className="d-sm-flex align-items-center">
+                      {/* Preview Image */}
+                      <a
+                        className="product-list-img d-block flex-shrink-0 mx-auto"
+                        href="#"
+                      >
+                        <img
+                          src="https://marketop.realthe.me/assets/img/product-card/product-iphone-yellow.png"
+                          alt="Product"
+                        />
+                      </a>
+                      {/* Preview Image */}
+                      <div className="card-body">
+                        {/* Product Category */}
+                        <a
+                          className="product-category d-block fs-sm pb-1"
+                          href="#"
+                        >
+                          Smartphones
+                        </a>
+                        {/* Product Category */}
+                        {/* Product Title */}
+                        <h3 className="product-title me-sm-10">
+                          <a href="#">Apple iPhone 11 128GB Yellow</a>
+                        </h3>
+                        {/* Product Title */}
+                        {/* Star Rating */}
+                        <span className="star-rating star-8" />
+                        {/* Star Rating */}
+                        {/* Product Price */}
+                        <div className="product-price">
+                          <span className="text-danger fs-5">
+                            ₹699
+                            <del className="text-body-secondary ms-1">
+                              <small>₹749</small>
+                            </del>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-4" />
+                  {/* Product */}
+                  {/* Product */}
+                  <div className="card card-product product-list">
+                    {/* Badges */}
+                    <div className="product-badges">
+                      <span className="badge bg-danger">15%</span>
+                      <span className="badge bg-info">New</span>
+                    </div>
+                    {/* Badges */}
+                    {/* Buttons */}
+                    <div className="product-buttons">
+                      <button
+                        className="btn-product btn-wishlist"
+                        type="button"
+                        data-bs-toggle="button"
+                        title="Add to wishlist"
+                      >
+                        <i className="ri-heart-line" />
+                      </button>
+                      <a
+                        className="btn-product btn-compare"
+                        href="#"
+                        title="Compare product"
+                      >
+                        <i className="ri-repeat-line" />
+                      </a>
+                      <a
+                        className="btn-product btn-view"
+                        href="#modal-quick-view"
+                        data-bs-toggle="modal"
+                        title="Quick preview"
+                      >
+                        <i className="ri-eye-line" />
+                      </a>
+                    </div>
+                    {/* Buttons */}
+                    <div className="d-sm-flex align-items-center">
+                      {/* Preview Image */}
+                      <a
+                        className="product-list-img d-block flex-shrink-0 mx-auto"
+                        href="#"
+                      >
+                        <img
+                          src="https://marketop.realthe.me/assets/img/product-card/product-macbook-pro-14.png"
+                          alt="Product"
+                        />
+                      </a>
+                      {/* Preview Image */}
+                      <div className="card-body">
+                        {/* Product Category */}
+                        <a
+                          className="product-category d-block fs-sm pb-1"
+                          href="#"
+                        >
+                          Notebooks
+                        </a>
+                        {/* Product Category */}
+                        {/* Product Title */}
+                        <h3 className="product-title me-sm-10">
+                          <a href="#">Apple MacBook Pro 14" 1Tb Silver</a>
+                        </h3>
+                        {/* Product Title */}
+                        {/* Star Rating */}
+                        <span className="star-rating star-9" />
+                        {/* Star Rating */}
+                        {/* Product Price */}
+                        <div className="product-price">
+                          <span className="text-danger fs-5">
+                            ₹2399
+                            <del className="text-body-secondary ms-1">
+                              <small>₹2499</small>
+                            </del>
+                          </span>
+                        </div>
+                        {/* Product Price */}
+
+                        <button
+                          className="btn btn-primary btn-sm d-flex align-items-center justify-content-center mt-1"
+                          type="button"
+                        >
+                          <i className="ri-shopping-cart-2-line me-2" />
+                          Add to Cart
+                        </button>
+                        {/* Button */}
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-4" />
+                  {/* Product */}
+                  {/* Product */}
+                  <div className="card card-product product-list">
+                    {/* Badges */}
+                    <div className="product-badges">
+                      <span className="badge bg-danger">10%</span>
+                    </div>
+                    {/* Badges */}
+                    {/* Buttons */}
+                    <div className="product-buttons">
+                      <button
+                        className="btn-product btn-wishlist"
+                        type="button"
+                        data-bs-toggle="button"
+                        title="Add to wishlist"
+                      >
+                        <i className="ri-heart-line" />
+                      </button>
+                      <a
+                        className="btn-product btn-compare"
+                        href="#"
+                        title="Compare product"
+                      >
+                        <i className="ri-repeat-line" />
+                      </a>
+                      <a
+                        className="btn-product btn-view"
+                        href="#modal-quick-view"
+                        data-bs-toggle="modal"
+                        title="Quick preview"
+                      >
+                        <i className="ri-eye-line" />
+                      </a>
+                    </div>
+                    {/* Buttons */}
+                    <div className="d-sm-flex align-items-center">
+                      {/* Preview Image */}
+                      <a
+                        className="product-list-img d-block flex-shrink-0 mx-auto"
+                        href="#"
+                      >
+                        <img
+                          src="https://marketop.realthe.me/assets/img/product-card/product-jbl-earphones.png"
+                          alt="Product"
+                        />
+                      </a>
+                      {/* Preview Image */}
+                      <div className="card-body">
+                        {/* Product Category */}
+                        <a
+                          className="product-category d-block fs-sm pb-1"
+                          href="#"
+                        >
+                          Headphones
+                        </a>
+                        {/* Product Category */}
+                        {/* Product Title */}
+                        <h3 className="product-title me-sm-10">
+                          <a href="#">JBL Tune TWS Blue</a>
+                        </h3>
+                        {/* Product Title */}
+                        {/* Star Rating */}
+                        <span className="star-rating star-8" />
+                        {/* Star Rating */}
+                        {/* Product Price */}
+                        <div className="product-price">
+                          <span className="text-danger fs-5">
+                            ₹89
+                            <del className="text-body-secondary ms-1">
+                              <small>₹99</small>
+                            </del>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-4" />
+                  {/* Product */}
+                  {/* Product */}
+                  <div className="card card-product product-list">
+                    {/* Badges */}
+                    <div className="product-badges">
+                      <span className="badge bg-danger">15%</span>
+                      <span className="badge bg-info">New</span>
+                    </div>
+                    {/* Badges */}
+                    {/* Buttons */}
+                    <div className="product-buttons">
+                      <button
+                        className="btn-product btn-wishlist"
+                        type="button"
+                        data-bs-toggle="button"
+                        title="Add to wishlist"
+                      >
+                        <i className="ri-heart-line" />
+                      </button>
+                      <a
+                        className="btn-product btn-compare"
+                        href="#"
+                        title="Compare product"
+                      >
+                        <i className="ri-repeat-line" />
+                      </a>
+                      <a
+                        className="btn-product btn-view"
+                        href="#modal-quick-view"
+                        data-bs-toggle="modal"
+                        title="Quick preview"
+                      >
+                        <i className="ri-eye-line" />
+                      </a>
+                    </div>
+                    {/* Buttons */}
+                    <div className="d-sm-flex align-items-center">
+                      {/* Preview Image */}
+                      <a
+                        className="product-list-img d-block flex-shrink-0 mx-auto"
+                        href="#"
+                      >
+                        <img
+                          src="https://marketop.realthe.me/assets/img/product-card/product-apple-watch.png"
+                          alt="Product"
+                        />
+                      </a>
+                      {/* Preview Image */}
+                      <div className="card-body">
+                        {/* Product Category */}
+                        <a
+                          className="product-category d-block fs-sm pb-1"
+                          href="#"
+                        >
+                          Smart watches
+                        </a>
+                        {/* Product Category */}
+                        {/* Product Title */}
+                        <h3 className="product-title me-sm-10">
+                          <a href="#">Apple Watch 7 Aluminum 45 mm</a>
+                        </h3>
+                        {/* Product Title */}
+                        {/* Star Rating */}
+                        <span className="star-rating star-10" />
+                        {/* Star Rating */}
+                        {/* Product Price */}
+                        <div className="product-price">
+                          <span className="text-danger fs-5">
+                            ₹399
+                            <del className="text-body-secondary ms-1">
+                              <small>₹499</small>
+                            </del>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-4" />
+                  {/* Product */}
+                  {/* Product */}
+                  <div className="card card-product product-list">
+                    {/* Badges */}
+                    <div className="product-badges">
+                      <span className="badge bg-danger">10%</span>
+                      <span className="badge bg-success">Top</span>
+                    </div>
+                    {/* Badges */}
+                    {/* Buttons */}
+                    <div className="product-buttons">
+                      <button
+                        className="btn-product btn-wishlist"
+                        type="button"
+                        data-bs-toggle="button"
+                        title="Add to wishlist"
+                      >
+                        <i className="ri-heart-line" />
+                      </button>
+                      <a
+                        className="btn-product btn-compare"
+                        href="#"
+                        title="Compare product"
+                      >
+                        <i className="ri-repeat-line" />
+                      </a>
+                      <a
+                        className="btn-product btn-view"
+                        href="#modal-quick-view"
+                        data-bs-toggle="modal"
+                        title="Quick preview"
+                      >
+                        <i className="ri-eye-line" />
+                      </a>
+                    </div>
+                    {/* Buttons */}
+                    <div className="d-sm-flex align-items-center">
+                      {/* Preview Image */}
+                      <a
+                        className="product-list-img d-block flex-shrink-0 mx-auto"
+                        href="#"
+                      >
+                        <img
+                          src="https://marketop.realthe.me/assets/img/product-card/product-sony-speaker.png"
+                          alt="Product"
+                        />
+                      </a>
+                      {/* Preview Image */}
+                      <div className="card-body">
+                        {/* Product Category */}
+                        <a
+                          className="product-category d-block fs-sm pb-1"
+                          href="#"
+                        >
+                          Speakers
+                        </a>
+                        {/* Product Category */}
+                        {/* Product Title */}
+                        <h3 className="product-title me-sm-10">
+                          <a href="#">Sony Smart Speaker</a>
+                        </h3>
+                        {/* Product Title */}
+                        {/* Star Rating */}
+                        <span className="star-rating star-8" />
+                        {/* Star Rating */}
+                        {/* Product Price */}
+                        <div className="product-price">
+                          <span className="text-danger fs-5">
+                            ₹49
+                            <del className="text-body-secondary ms-1">
+                              <small>₹59</small>
+                            </del>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-4" />
+                  {/* Product */}
+                  {/* Product */}
+                  <div className="card card-product product-list">
+                    {/* Badges */}
+                    <div className="product-badges">
+                      <span className="badge bg-danger">11%</span>
+                      <span className="badge bg-info">New</span>
+                    </div>
+                    {/* Badges */}
+                    {/* Buttons */}
+                    <div className="product-buttons">
+                      <button
+                        className="btn-product btn-wishlist"
+                        type="button"
+                        data-bs-toggle="button"
+                        title="Add to wishlist"
+                      >
+                        <i className="ri-heart-line" />
+                      </button>
+                      <a
+                        className="btn-product btn-compare"
+                        href="#"
+                        title="Compare product"
+                      >
+                        <i className="ri-repeat-line" />
+                      </a>
+                      <a
+                        className="btn-product btn-view"
+                        href="#modal-quick-view"
+                        data-bs-toggle="modal"
+                        title="Quick preview"
+                      >
+                        <i className="ri-eye-line" />
+                      </a>
+                    </div>
+                    {/* Buttons */}
+                    <div className="d-sm-flex align-items-center">
+                      {/* Preview Image */}
+                      <a
+                        className="product-list-img d-block flex-shrink-0 mx-auto"
+                        href="#"
+                      >
+                        <img
+                          src="https://marketop.realthe.me/assets/img/product-card/product-samsung-tablet.png"
+                          alt="Product"
+                        />
+                      </a>
+                      {/* Preview Image */}
+                      <div className="card-body">
+                        {/* Product Category */}
+                        <a
+                          className="product-category d-block fs-sm pb-1"
+                          href="#"
+                        >
+                          Tablets
+                        </a>
+                        {/* Product Category */}
+                        {/* Product Title */}
+                        <h3 className="product-title me-sm-10">
+                          <a href="#">Samsung Galaxy Tab S6</a>
+                        </h3>
+                        {/* Product Title */}
+                        {/* Star Rating */}
+                        <span className="star-rating star-8" />
+                        {/* Star Rating */}
+                        {/* Product Price */}
+                        <div className="product-price">
+                          <span className="text-danger fs-5">
+                            ₹399
+                            <del className="text-body-secondary ms-1">
+                              <small>₹449</small>
+                            </del>
+                          </span>
+                        </div>
+                        {/* Product Price */}
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-4" />
+                  {/* Product */}
+                  {/* Product */}
+                  <div className="card card-product product-list">
+                    {/* Badges */}
+                    <div className="product-badges">
+                      <span className="badge bg-danger">12%</span>
+                      <span className="badge bg-success">Top</span>
+                    </div>
+                    {/* Badges */}
+                    {/* Buttons */}
+                    <div className="product-buttons">
+                      <button
+                        className="btn-product btn-wishlist"
+                        type="button"
+                        data-bs-toggle="button"
+                        title="Add to wishlist"
+                      >
+                        <i className="ri-heart-line" />
+                      </button>
+                      <a
+                        className="btn-product btn-compare"
+                        href="#"
+                        title="Compare product"
+                      >
+                        <i className="ri-repeat-line" />
+                      </a>
+                      <a
+                        className="btn-product btn-view"
+                        href="#modal-quick-view"
+                        data-bs-toggle="modal"
+                        title="Quick preview"
+                      >
+                        <i className="ri-eye-line" />
+                      </a>
+                    </div>
+                    {/* Buttons */}
+                    <div className="d-sm-flex align-items-center">
+                      {/* Preview Image */}
+                      <a
+                        className="product-list-img d-block flex-shrink-0 mx-auto"
+                        href="#"
+                      >
+                        <img
+                          src="https://marketop.realthe.me/assets/img/product-card/product-bose-headphones.png"
+                          alt="Product"
+                        />
+                      </a>
+                      {/* Preview Image */}
+                      <div className="card-body">
+                        {/* Product Category */}
+                        <a
+                          className="product-category d-block fs-sm pb-1"
+                          href="#"
+                        >
+                          Headphones
+                        </a>
+                        {/* Product Category */}
+                        {/* Product Title */}
+                        <h3 className="product-title me-sm-10">
+                          <a href="#">Bose QuietComfort 45</a>
+                        </h3>
+                        {/* Product Title */}
+                        {/* Star Rating */}
+                        <span className="star-rating star-8" />
+                        {/* Star Rating */}
+                        {/* Product Price */}
+                        <div className="product-price">
+                          <span className="text-danger fs-5">
+                            ₹299
+                            <del className="text-body-secondary ms-1">
+                              <small>₹349</small>
+                            </del>
+                          </span>
+                        </div>
+                        {/* Product Price */}
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-4" />
+                  {/* Product */}
+                  {/* Product */}
+                  <div className="card card-product product-list">
+                    {/* Badges */}
+                    <div className="product-badges">
+                      <span className="badge bg-danger">12%</span>
+                      <span className="badge bg-success">Top</span>
+                    </div>
+                    {/* Badges */}
+                    {/* Buttons */}
+                    <div className="product-buttons">
+                      <button
+                        className="btn-product btn-wishlist"
+                        type="button"
+                        data-bs-toggle="button"
+                        title="Add to wishlist"
+                      >
+                        <i className="ri-heart-line" />
+                      </button>
+                      <a
+                        className="btn-product btn-compare"
+                        href="#"
+                        title="Compare product"
+                      >
+                        <i className="ri-repeat-line" />
+                      </a>
+                      <a
+                        className="btn-product btn-view"
+                        href="#modal-quick-view"
+                        data-bs-toggle="modal"
+                        title="Quick preview"
+                      >
+                        <i className="ri-eye-line" />
+                      </a>
+                    </div>
+                    {/* Buttons */}
+                    <div className="d-sm-flex align-items-center">
+                      {/* Preview Image */}
+                      <a
+                        className="product-list-img d-block flex-shrink-0 mx-auto"
+                        href="#"
+                      >
+                        <img
+                          src="https://marketop.realthe.me/assets/img/product-card/product-xiaomi-redmi.png"
+                          alt="Product"
+                        />
+                      </a>
+                      {/* Preview Image */}
+                      <div className="card-body">
+                        {/* Product Category */}
+                        <a
+                          className="product-category d-block fs-sm pb-1"
+                          href="#"
+                        >
+                          Smartphones
+                        </a>
+                        {/* Product Category */}
+                        {/* Product Title */}
+                        <h3 className="product-title me-sm-10">
+                          <a href="#">Xiaomi Redmi 10 128GB Coral Blue</a>
+                        </h3>
+                        {/* Product Title */}
+                        {/* Star Rating */}
+                        <span className="star-rating star-8" />
+                        {/* Star Rating */}
+                        {/* Product Price */}
+                        <div className="product-price">
+                          <span className="text-danger fs-5">
+                            ₹199
+                            <del className="text-body-secondary ms-1">
+                              <small>₹249</small>
+                            </del>
+                          </span>
+                        </div>
+                        {/* Product Price */}
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="my-4" />
+                  {/* Product */}
+                  {/* Pagination */}
+                  <div className="d-flex justify-content-between mt-6">
+                    <ul className="pagination">
+                      <li className="page-item">
+                        <a className="page-link" href="#">
+                          <i className="ri-arrow-left-s-line me-1" />
+                          Prev
+                        </a>
+                      </li>
+                    </ul>
+                    <ul className="pagination">
+                      <li className="page-item d-sm-none">
+                        <span className="page-link page-link-static">
+                          1 / 5
+                        </span>
+                      </li>
+                      <li
+                        className="page-item active d-none d-sm-block"
+                        aria-current="page"
+                      >
+                        <span className="page-link">
+                          1<span className="visually-hidden">(current)</span>
+                        </span>
+                      </li>
+                      <li className="page-item d-none d-sm-block">
+                        <a className="page-link" href="#">
+                          2
+                        </a>
+                      </li>
+                      <li className="page-item d-none d-sm-block">
+                        <a className="page-link" href="#">
+                          3
+                        </a>
+                      </li>
+                      <li className="page-item d-none d-sm-block">
+                        <a className="page-link" href="#">
+                          4
+                        </a>
+                      </li>
+                      <li className="page-item d-none d-sm-block">
+                        <a className="page-link" href="#">
+                          5
+                        </a>
+                      </li>
+                    </ul>
+                    <ul className="pagination">
+                      <li className="page-item">
+                        <a className="page-link" href="#" aria-label="Next">
+                          Next
+                          <i className="ms-1 ri-arrow-right-s-line" />
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
+                  {/* Pagination */}
+                </div>
+                {/* Product List */}
+              </div>
+            </aside>
+            {/* Content */}
+
+            <div className="container mt-5">
+              {/* Recommended Products Slider */}
+
+              {/* Slider Heading */}
+              <div className="d-flex flex-wrap align-items-center justify-content-between border-bottom pb-4 mb-4 mt-5">
+                <h2 className="h3 mb-0 me-2">Recommended Products</h2>
+                <div className="ms-0">
+                  <ul className="nav d-none">
+                    <li className="nav-item me-3">
+                      <button
+                        className="btn btn-link products-swiper-button-prev nav-link link-info link-hover-primary p-0"
+                        type="button"
+                        title="Previous"
+                      >
+                        <i className="ri-arrow-left-s-line fs-4" />
+                      </button>
+                    </li>
+                    <li className="nav-item">
+                      <button
+                        className="btn btn-link products-swiper-button-next nav-link link-info link-hover-primary p-0"
+                        type="button"
+                        title="Next"
+                      >
+                        <i className="ri-arrow-right-s-line fs-4" />
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              {/* Slider Heading */}
+
+              {/* Slider */}
+              <div
+                className="products-swiper m-n4"
+                style={{ transform: "scale(0.98)" }}
+              >
+                <div className="row pt-2 mx-n2 hero-swiper ">
+                  {/* Product Card */}
+                  <Swiper
+                    breakpoints={{
+                      400: {
+                        slidesPerView: 2,
+                        spaceBetween: 10, // Set the gap between slides for window width <= 400px
+                      },
+                      768: {
+                        slidesPerView: 3,
+                        spaceBetween: 20, // Set the gap between slides for window width <= 768px
+                      },
+                      992: {
+                        slidesPerView: 5,
+                        spaceBetween: 25, // Set the gap between slides for window width <= 992px
+                      },
+                      1200: {
+                        slidesPerView: 6,
+                        spaceBetween: 20, // Set the gap between slides for window width <= 1200px
+                      },
+                    }}
+                    navigation={false}
+                    pagination={true}
+                    modules={[Pagination, Navigation]}
+                    className="swiper-wrapper pb-6"
+                  >
+                    <SwiperSlide>
+                      <div className="card card-product h-100">
+                        {/* Badges */}
+                        <div className="product-badges">
+                          <span className="badge bg-danger">12%</span>
+                          <span className="badge bg-success">Top</span>
+                        </div>
+                        {/* Badges */}
+                        {/* Buttons */}
+                        <div className="product-buttons">
+                          <button
+                            className="btn-product btn-wishlist"
+                            type="button"
+                            data-bs-toggle="button"
+                            title="Add to wishlist"
+                          >
+                            <i className="ri-heart-line" />
+                          </button>
+                          <a
+                            className="btn-product btn-compare"
+                            href="#"
+                            title="Compare product"
+                          >
+                            <i className="ri-repeat-line" />
+                          </a>
+                          <a
+                            className="btn-product btn-view"
+                            href="#modal-quick-view"
+                            data-bs-toggle="modal"
+                            title="Quick preview"
+                          >
+                            <i className="ri-eye-line" />
+                          </a>
+                        </div>
+                        {/* Buttons */}
+                        {/* Preview Image */}
+                        <Link
+                          className="card-img-top d-block overflow-hidden flex-shrink-0"
+                          to="/product/6595890aae97c7f55ed34b6e"
+                        >
+                          <img
+                            className="img-fluid"
+                            src="https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1701192568/Croma%20Assets/Large%20Appliances/Washers%20and%20Dryers/Images/265846_0_ng8wj2.png?tr=w-480"
+                            alt="Product"
+                          />
+                        </Link>
+                        {/* Preview Image */}
+                        <div className="card-body d-flex flex-column align-items-start flex-grow-1 rounded-bottom h-100 py-3">
+                          {/* Product Category */}
+                          <a
+                            className="product-category d-block fs-sm pb-1"
+                            href="#"
+                          >
+                            SAMSUNG
+                          </a>
+                          {/* Product Category */}
+                          {/* Product Title */}
+                          <h3 className="product-title flex-grow-1">
+                            <a href="#">
+                              SAMSUNG 8 Kg 5 Star Inverter Fully Automatic Top
+                            </a>
+                          </h3>
+                          {/* Product Title */}
+                          {/* Star Rating */}
+                          <span className="star-rating star-8" />
+                          {/* Star Rating */}
+                          {/* Product Price */}
+                          <div className="product-price">
+                            <span className="text-danger fs-5">
+                              ₹34999
+                              <del className="text-body-secondary ms-1">
+                                <small>₹49999</small>
+                              </del>
+                            </span>
+                          </div>
+                          {/* Product Price */}
+                        </div>
+                        {/* Product Addon */}
+
+                        {/* Product Addon */}
+                      </div>
+                      {/* Product Cards */}
+                    </SwiperSlide>
+
+                    {/* Product Card */}
+                    <SwiperSlide>
+                      <div className="card card-product h-100">
+                        {/* Badges */}
+                        <div className="product-badges">
+                          <span className="badge bg-danger">11%</span>
+                          <span className="badge bg-success">Top</span>
+                        </div>
+                        {/* Badges */}
+                        {/* Buttons */}
+                        <div className="product-buttons">
+                          <button
+                            className="btn-product btn-wishlist"
+                            type="button"
+                            data-bs-toggle="button"
+                            title="Add to wishlist"
+                          >
+                            <i className="ri-heart-line" />
+                          </button>
+                          <a
+                            className="btn-product btn-compare"
+                            href="#"
+                            title="Compare product"
+                          >
+                            <i className="ri-repeat-line" />
+                          </a>
+                          <a
+                            className="btn-product btn-view"
+                            href="#modal-quick-view"
+                            data-bs-toggle="modal"
+                            title="Quick preview"
+                          >
+                            <i className="ri-eye-line" />
+                          </a>
+                        </div>
+                        {/* Buttons */}
+                        {/* Preview Image */}
+                        <Link
+                          className="card-img-top d-block overflow-hidden flex-shrink-0"
+                          to="/product/6595890aae97c7f55ed34b6e"
+                        >
+                          <img
+                            className="img-fluid"
+                            src="https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1698306735/Croma%20Assets/Wearable/Wearable%20Devices/Images/302546_a22dos.png?tr=w-480"
+                            alt="Product"
+                          />
+                        </Link>
+                        {/* Preview Image */}
+                        <div className="card-body d-flex flex-column align-items-start flex-grow-1 rounded-bottom h-100 py-3">
+                          {/* Product Category */}
+                          <a
+                            className="product-category d-block fs-sm pb-1"
+                            href="#"
+                          >
+                            Smartwatch
+                          </a>
+                          {/* Product Category */}
+                          {/* Product Title */}
+                          <h3 className="product-title flex-grow-1">
+                            <a href="#">
+                              FIRE-BOLTT Ninja Call Pro Smartwatch with Bluetoot
+                            </a>
+                          </h3>
+                          {/* Product Title */}
+                          {/* Star Rating */}
+                          <span className="star-rating star-8" />
+                          {/* Star Rating */}
+                          {/* Product Price */}
+                          <div className="product-price">
+                            <span className="text-danger fs-5">
+                              ₹69999
+                              <del className="text-body-secondary ms-1">
+                                <small>₹74999</small>
+                              </del>
+                            </span>
+                          </div>
+                          {/* Product Price */}
+                        </div>
+                        {/* Product Addon */}
+
+                        {/* Product Addon */}
+                      </div>
+                    </SwiperSlide>
+
+                    {/* Product Card */}
+                    {/* Product Card */}
+                    <SwiperSlide>
+                      <div className="card card-product h-100">
+                        {/* Badges */}
+                        <div className="product-badges">
+                          <span className="badge bg-danger">15%</span>
+                          <span className="badge bg-info">New</span>
+                        </div>
+                        {/* Badges */}
+                        {/* Buttons */}
+                        <div className="product-buttons">
+                          <button
+                            className="btn-product btn-wishlist"
+                            type="button"
+                            data-bs-toggle="button"
+                            title="Add to wishlist"
+                          >
+                            <i className="ri-heart-line" />
+                          </button>
+                          <a
+                            className="btn-product btn-compare"
+                            href="#"
+                            title="Compare product"
+                          >
+                            <i className="ri-repeat-line" />
+                          </a>
+                          <a
+                            className="btn-product btn-view"
+                            href="#modal-quick-view"
+                            data-bs-toggle="modal"
+                            title="Quick preview"
+                          >
+                            <i className="ri-eye-line" />
+                          </a>
+                        </div>
+                        {/* Buttons */}
+                        {/* Preview Image */}
+                        <a
+                          className="card-img-top d-block overflow-hidden flex-shrink-0"
+                          href="#"
+                        >
+                          <img
+                            className="img-fluid"
+                            src="https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1706191073/Croma%20Assets/Small%20Appliances/Microwave%20or%20OTG/Images/227708_0_so7ghh.png?tr=w-480"
+                            alt="Product"
+                          />
+                        </a>
+                        {/* Preview Image */}
+                        <div className="card-body d-flex flex-column align-items-start flex-grow-1 rounded-bottom h-100 py-3">
+                          {/* Product Category */}
+                          <a
+                            className="product-category d-block fs-sm pb-1"
+                            href="#"
+                          >
+                            Microwave & Ovens
+                          </a>
+                          {/* Product Category */}
+                          {/* Product Title */}
+                          <h3 className="product-title flex-grow-1">
+                            <a href="#">
+                              {" "}
+                              Croma M20 20L Solo Microwave Oven with Temperature
+                              Sensor (Black)
+                            </a>
+                          </h3>
+                          {/* Product Title */}
+                          {/* Star Rating */}
+                          <span className="star-rating star-9" />
+                          {/* Star Rating */}
+                          {/* Product Price */}
+                          <div className="product-price">
+                            <span className="text-danger fs-5">
+                              ₹2399
+                              <del className="text-body-secondary ms-1">
+                                <small>₹2499</small>
+                              </del>
+                            </span>
+                          </div>
+                          {/* Product Price */}
+                        </div>
+                        {/* Product Addon */}
+
+                        {/* Product Addon */}
+                      </div>
+                    </SwiperSlide>
+
+                    {/* Product Card */}
+
+                    {/* Product Card */}
+
+                    <SwiperSlide>
+                      <div className="card card-product h-100">
+                        {/* Badges */}
+                        <div className="product-badges">
+                          <span className="badge bg-danger">10%</span>
+                        </div>
+                        {/* Badges */}
+                        {/* Buttons */}
+                        <div className="product-buttons">
+                          <button
+                            className="btn-product btn-wishlist"
+                            type="button"
+                            data-bs-toggle="button"
+                            title="Add to wishlist"
+                          >
+                            <i className="ri-heart-line" />
+                          </button>
+                          <a
+                            className="btn-product btn-compare"
+                            href="#"
+                            title="Compare product"
+                          >
+                            <i className="ri-repeat-line" />
+                          </a>
+                          <a
+                            className="btn-product btn-view"
+                            href="#modal-quick-view"
+                            data-bs-toggle="modal"
+                            title="Quick preview"
+                          >
+                            <i className="ri-eye-line" />
+                          </a>
+                        </div>
+                        {/* Buttons */}
+                        {/* Preview Image */}
+                        <a
+                          className="card-img-top d-block overflow-hidden flex-shrink-0"
+                          href="#"
+                        >
+                          <img
+                            className="img-fluid"
+                            src="https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1697021638/Croma%20Assets/Entertainment/Wireless%20Earbuds/Images/275377_0_qgjwsa.png?tr=w-480"
+                            alt="Product"
+                          />
+                        </a>
+                        {/* Preview Image */}
+                        <div className="card-body d-flex flex-column align-items-start flex-grow-1 rounded-bottom h-100 py-3">
+                          {/* Product Category */}
+                          <a
+                            className="product-category d-block fs-sm pb-1"
+                            href="#"
+                          >
+                            Headphones
+                          </a>
+                          {/* Product Category */}
+                          {/* Product Title */}
+                          <h3 className="product-title flex-grow-1">
+                            <a href="#">
+                              boAt Airdopes 100 TWS Earbuds with Environmental
+                              Noise Cancellation (IPX4 Water Resistant, ASAP
+                              Charge, Opal Black)
+                            </a>
+                          </h3>
+                          {/* Product Title */}
+                          {/* Star Rating */}
+                          <span className="star-rating star-8" />
+                          {/* Star Rating */}
+                          {/* Product Price */}
+                          <div className="product-price">
+                            <span className="text-danger fs-5">
+                              ₹899
+                              <del className="text-body-secondary ms-1">
+                                <small>₹999</small>
+                              </del>
+                            </span>
+                          </div>
+                          {/* Product Price */}
+                        </div>
+                        {/* Product Addon */}
+
+                        {/* Product Addon */}
+                      </div>
+                    </SwiperSlide>
+
+                    {/* Product Card */}
+
+                    {/* Product Card */}
+                    <SwiperSlide>
+                      <div className="card card-product h-100">
+                        {/* Badges */}
+                        <div className="product-badges">
+                          <span className="badge bg-danger">15%</span>
+                          <span className="badge bg-info">New</span>
+                        </div>
+                        {/* Badges */}
+                        {/* Buttons */}
+                        <div className="product-buttons">
+                          <button
+                            className="btn-product btn-wishlist"
+                            type="button"
+                            data-bs-toggle="button"
+                            title="Add to wishlist"
+                          >
+                            <i className="ri-heart-line" />
+                          </button>
+                          <a
+                            className="btn-product btn-compare"
+                            href="#"
+                            title="Compare product"
+                          >
+                            <i className="ri-repeat-line" />
+                          </a>
+                          <a
+                            className="btn-product btn-view"
+                            href="#modal-quick-view"
+                            data-bs-toggle="modal"
+                            title="Quick preview"
+                          >
+                            <i className="ri-eye-line" />
+                          </a>
+                        </div>
+                        {/* Buttons */}
+                        {/* Preview Image */}
+                        <a
+                          className="card-img-top d-block overflow-hidden flex-shrink-0"
+                          href="#"
+                        >
+                          <img
+                            className="img-fluid"
+                            src="https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1697622730/Croma%20Assets/Entertainment/Wireless%20Earbuds/Images/247655_epvwtx.png?tr=w-480"
+                            alt="Product"
+                          />
+                        </a>
+                        {/* Preview Image */}
+                        <div className="card-body d-flex flex-column align-items-start flex-grow-1 rounded-bottom h-100 py-3">
+                          {/* Product Category */}
+                          <a
+                            className="product-category d-block fs-sm pb-1"
+                            href="#"
+                          >
+                            Headphones
+                          </a>
+                          {/* Product Category */}
+                          {/* Product Title */}
+                          <h3 className="product-title flex-grow-1">
+                            <a href="#">
+                              boAt Airdopes 148 TWS Earbuds with Environmental
+                              Noise Cancellation (IPX4 Sweat & Water Resistant,
+                              42 Hours Playtime, Black)
+                            </a>
+                          </h3>
+                          {/* Product Title */}
+                          {/* Star Rating */}
+                          <span className="star-rating star-10" />
+                          {/* Star Rating */}
+                          {/* Product Price */}
+                          <div className="product-price">
+                            <span className="text-danger fs-5">
+                              ₹399
+                              <del className="text-body-secondary ms-1">
+                                <small>₹499</small>
+                              </del>
+                            </span>
+                          </div>
+                          {/* Product Price */}
+                        </div>
+                        {/* Product Addon */}
+
+                        {/* Product Addon */}
+                      </div>
+                    </SwiperSlide>
+
+                    {/* Product Card */}
+                    {/* Product Card */}
+
+                    <SwiperSlide>
+                      <div className="card card-product h-100">
+                        {/* Badges */}
+                        <div className="product-badges">
+                          <span className="badge bg-danger">10%</span>
+                          <span className="badge bg-success">Top</span>
+                        </div>
+                        {/* Badges */}
+                        {/* Buttons */}
+                        <div className="product-buttons">
+                          <button
+                            className="btn-product btn-wishlist"
+                            type="button"
+                            data-bs-toggle="button"
+                            title="Add to wishlist"
+                          >
+                            <i className="ri-heart-line" />
+                          </button>
+                          <a
+                            className="btn-product btn-compare"
+                            href="#"
+                            title="Compare product"
+                          >
+                            <i className="ri-repeat-line" />
+                          </a>
+                          <a
+                            className="btn-product btn-view"
+                            href="#modal-quick-view"
+                            data-bs-toggle="modal"
+                            title="Quick preview"
+                          >
+                            <i className="ri-eye-line" />
+                          </a>
+                        </div>
+                        {/* Buttons */}
+                        {/* Preview Image */}
+                        <a
+                          className="card-img-top d-block overflow-hidden flex-shrink-0"
+                          href="#"
+                        >
+                          <img
+                            className="img-fluid"
+                            src="https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1701660440/Croma%20Assets/Wearable/Wearable%20Devices/Images/303131_krj5a3.png?tr=w-480"
+                            alt="Product"
+                          />
+                        </a>
+                        {/* Preview Image */}
+                        <div className="card-body d-flex flex-column align-items-start flex-grow-1 rounded-bottom h-100 py-3">
+                          {/* Product Category */}
+                          <a
+                            className="product-category d-block fs-sm pb-1"
+                            href="#"
+                          >
+                            Smartwatch
+                          </a>
+                          {/* Product Category */}
+                          {/* Product Title */}
+                          <h3 className="product-title flex-grow-1">
+                            <a href="#">
+                              Nothing Watch Pro Smartwatch with Bluetooth
+                              Calling (49.78mm AMOLED Display, IP68 Water
+                              Resistant, Dark Grey Strap)
+                            </a>
+                          </h3>
+                          {/* Product Title */}
+                          {/* Star Rating */}
+                          <span className="star-rating star-8" />
+                          {/* Star Rating */}
+                          {/* Product Price */}
+                          <div className="product-price">
+                            <span className="text-danger fs-5">
+                              ₹4999
+                              <del className="text-body-secondary ms-1">
+                                <small>₹5999</small>
+                              </del>
+                            </span>
+                          </div>
+                          {/* Product Price */}
+                        </div>
+                        {/* Product Addon */}
+
+                        {/* Product Addon */}
+                      </div>
+                    </SwiperSlide>
+
+                    {/* Product Card */}
+                    {/* Product Card */}
+                    <SwiperSlide>
+                      <div className="card card-product h-100">
+                        {/* Badges */}
+                        <div className="product-badges">
+                          <span className="badge bg-danger">11%</span>
+                          <span className="badge bg-info">New</span>
+                        </div>
+                        {/* Badges */}
+                        {/* Buttons */}
+                        <div className="product-buttons">
+                          <button
+                            className="btn-product btn-wishlist"
+                            type="button"
+                            data-bs-toggle="button"
+                            title="Add to wishlist"
+                          >
+                            <i className="ri-heart-line" />
+                          </button>
+                          <a
+                            className="btn-product btn-compare"
+                            href="#"
+                            title="Compare product"
+                          >
+                            <i className="ri-repeat-line" />
+                          </a>
+                          <a
+                            className="btn-product btn-view"
+                            href="#modal-quick-view"
+                            data-bs-toggle="modal"
+                            title="Quick preview"
+                          >
+                            <i className="ri-eye-line" />
+                          </a>
+                        </div>
+                        {/* Buttons */}
+                        {/* Preview Image */}
+                        <a
+                          className="card-img-top d-block overflow-hidden flex-shrink-0"
+                          href="#"
+                        >
+                          <img
+                            className="img-fluid"
+                            src="https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1664417481/Croma%20Assets/Computers%20Peripherals/Laptop/Images/256263_0_hhjvoi.png?tr=w-480"
+                            alt="Product"
+                          />
+                        </a>
+                        {/* Preview Image */}
+                        <div className="card-body d-flex flex-column align-items-start flex-grow-1 rounded-bottom h-100 py-3">
+                          {/* Product Category */}
+                          <a
+                            className="product-category d-block fs-sm pb-1"
+                            href="#"
+                          >
+                            Laptop
+                          </a>
+                          {/* Product Category */}
+                          {/* Product Title */}
+                          <h3 className="product-title flex-grow-1">
+                            <a href="#">
+                              ASUS TUF Gaming F15 FX506LHB-HN355WS Intel
+                            </a>
+                          </h3>
+                          {/* Product Title */}
+                          {/* Star Rating */}
+                          <span className="star-rating star-8" />
+                          {/* Star Rating */}
+                          {/* Product Price */}
+                          <div className="product-price">
+                            <span className="text-danger fs-5">
+                              ₹39999
+                              <del className="text-body-secondary ms-1">
+                                <small>₹44999</small>
+                              </del>
+                            </span>
+                          </div>
+                          {/* Product Price */}
+                        </div>
+                        {/* Product Addon */}
+
+                        {/* Product Addon */}
+                      </div>
+                    </SwiperSlide>
+
+                    {/* Product Card */}
+                    {/* Product Card */}
+                    <SwiperSlide>
+                      <div className="card card-product h-100">
+                        {/* Badges */}
+                        <div className="product-badges">
+                          <span className="badge bg-danger">12%</span>
+                          <span className="badge bg-success">Top</span>
+                        </div>
+                        {/* Badges */}
+                        {/* Buttons */}
+                        <div className="product-buttons">
+                          <button
+                            className="btn-product btn-wishlist"
+                            type="button"
+                            data-bs-toggle="button"
+                            title="Add to wishlist"
+                          >
+                            <i className="ri-heart-line" />
+                          </button>
+                          <a
+                            className="btn-product btn-compare"
+                            href="#"
+                            title="Compare product"
+                          >
+                            <i className="ri-repeat-line" />
+                          </a>
+                          <a
+                            className="btn-product btn-view"
+                            href="#modal-quick-view"
+                            data-bs-toggle="modal"
+                            title="Quick preview"
+                          >
+                            <i className="ri-eye-line" />
+                          </a>
+                        </div>
+                        {/* Buttons */}
+                        {/* Preview Image */}
+                        <a
+                          className="card-img-top d-block overflow-hidden flex-shrink-0"
+                          href="#"
+                        >
+                          <img
+                            className="img-fluid"
+                            src="https://media-ik.croma.com/prod/https://media.croma.com/image/upload/v1701613549/Croma%20Assets/Entertainment/Television/Images/300485_0_pxxyni.png?tr=w-480"
+                            alt="Product"
+                          />
+                        </a>
+                        {/* Preview Image */}
+                        <div className="card-body d-flex flex-column align-items-start flex-grow-1 rounded-bottom h-100 py-3">
+                          {/* Product Category */}
+                          <a
+                            className="product-category d-block fs-sm pb-1"
+                            href="#"
+                          >
+                            Televisions
+                          </a>
+                          {/* Product Category */}
+                          {/* Product Title */}
+                          <h3 className="product-title flex-grow-1">
+                            <a href="#">
+                              Croma 80 cm (32 inch) HD Ready LED Smart Google TV
+                            </a>
+                          </h3>
+                          {/* Product Title */}
+                          {/* Star Rating */}
+                          <span className="star-rating star-8" />
+                          {/* Star Rating */}
+                          {/* Product Price */}
+                          <div className="product-price">
+                            <span className="text-danger fs-5">
+                              ₹29999
+                              <del className="text-body-secondary ms-1">
+                                <small>₹34999</small>
+                              </del>
+                            </span>
+                          </div>
+                          {/* Product Price */}
+
+                          {/* Product Addon */}
+                        </div>
+                        {/* Product Addon */}
+                      </div>
+                    </SwiperSlide>
+
+                    {/* Product Card */}
+                  </Swiper>
+                </div>
+              </div>
+              {/* Slider */}
+            </div>
+          </div>
+        </div>
+
+        {/* Product Category */}
+
+        <div className="container mx-auto my-2 py-2 bg-white d-none" id="mens">
+          <div className="row">
+            {isCat
+              ? Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="col-lg-3 col-md-3 col-sm-6 mt-2">
+                    <div
+                      className="card-1 skeleton"
+                      style={{ height: 264, borderRadius: 20 }}
+                    ></div>
+                  </div>
+                ))
+              : Cat.map((Cat) => (
+                  <>
+                    <div className="col-md-3">
+                      <Link to={`/category/₹{Cat._id}`} class="card">
+                        <img src={Cat.image} alt="" className="img" />
+                        <div class="textBox">
+                          <h5 class="text head">{Cat.title}</h5>
+                        </div>
+                      </Link>
+                    </div>
+                  </>
+                ))}
+          </div>
+        </div>
+
+        <section id="section2 my-4" className=" d-none">
+          <div className="conatianer-fluid my-5">
+            <div className="row mx-5 my-0">
+              <div className="col-md-2 ">
+                {/* filter start  */}
+
+                <div className="filter  filter-panel ms-2">
+                  <br />
+                  <div>
+                    Price Range
+                    <br />
+                    <input
+                      type="number"
+                      name="min"
+                      min="0"
+                      max={priceRange.max}
+                      step="10"
+                      value={priceRange.min}
+                      onChange={handleChange}
+                      className="input1"
+                    />
+                    <span> - </span>
+                    <input
+                      type="number"
+                      name="max"
+                      min={priceRange.min}
+                      max="1000"
+                      step="10"
+                      value={priceRange.max}
+                      onChange={handleChange}
+                      className="input1"
+                    />
+                  </div>
+
+                  <hr />
+
+                  <div>
+                    <div className="accordion" id="accordionExample">
+                      {Attr.length > 0 ? (
+                        <>
+                          {Attr.map((row, index) => (
+                            <>
+                              {row.name === "Color" ? (
+                                <>
+                                  <label>Colours</label>
+                                  <div className="color-options">
+                                    {row.value.map((value, index) => (
+                                      <label key={index}>
+                                        <input
+                                          type="checkbox"
+                                          style={{ display: "none" }}
+                                          name="color"
+                                          value={`${row.name},${value}`}
+                                          onChange={handleCheckboxChange}
+                                        />
+
+                                        <span
+                                          className="color-circle"
+                                          style={{
+                                            backgroundColor: `₹{row.color[index]}`,
+                                          }}
+                                        ></span>
+                                        <span className="hovercolor">
+                                          {value}
+                                        </span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                  <hr />
+                                </>
+                              ) : (
+                                <div className="accordion-item">
+                                  <h2
+                                    className="accordion-header"
+                                    id={`heading₹{index + 1}`}
+                                  >
+                                    <button
+                                      className="accordion-button"
+                                      type="button"
+                                      data-bs-toggle="collapse"
+                                      data-bs-target={`#collapseOne${
+                                        index + 1
+                                      }`}
+                                      aria-expanded="true"
+                                      aria-controls="collapseOne"
+                                    >
+                                      {row.name}
+                                    </button>
+                                  </h2>
+                                  <div
+                                    id={`collapseOne${index + 1}`}
+                                    className="accordion-collapse collapse show"
+                                    aria-labelledby={`heading₹{index + 1}`}
+                                  >
+                                    <div className="accordion-body">
+                                      {row.value.map((val, index) => (
+                                        <label className="checkbox-label">
+                                          <input
+                                            type="checkbox"
+                                            className="checkbox-input"
+                                            value={`₹{row.name},₹{val}`}
+                                            onChange={handleCheckboxChange}
+                                          />{" "}
+                                          {val}
+                                        </label>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          ))}
+                        </>
+                      ) : (
+                        <div> Loading .....</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filter end */}
+              </div>
+
+              <div className="col-md-10 ">
+                <div class="row">
+                  {isCat
+                    ? Array.from({ length: 6 }).map((_, index) => (
+                        <div
+                          key={index}
+                          className="col-lg-4 col-md-4 col-sm-6 mt-4"
+                        >
+                          <div
+                            className="card-1 skeleton"
+                            style={{ height: 400, borderRadius: 5 }}
+                          ></div>
+                        </div>
+                      ))
+                    : Pro.map((Pro) => (
+                        <>
+                          <div className="col-md-4">
+                            <div className="card1 mt-4">
+                              <Link
+                                classname="price"
+                                to={`/product/₹{Pro._id}`}
+                              >
+                                <figure>
+                                  <img
+                                    src={Pro.pImage}
+                                    alt="t-shirt"
+                                    width={"100%"}
+                                  />
+                                </figure>
+                              </Link>
+                              <section className="details">
+                                <div className="min-details">
+                                  <h4> {Pro.title} </h4>
+                                  <Link
+                                    classname="price"
+                                    to={`/product/₹{Pro._id}`}
+                                  >
+                                    <del>₹{Pro.regularPrice}</del> ₹
+                                    {Pro.salePrice}{" "}
+                                  </Link>
+                                </div>
+
+                                <div className="options">
+                                  <div className="options-size">
+                                    <h3>sizes</h3>
+                                    <ul>
+                                      <li>xs</li>
+                                      <li>s</li>
+                                      <li>m</li>
+                                      <li>l</li>
+                                      <li>xl</li>
+                                    </ul>
+                                  </div>
+                                </div>
+
+                                <Link to="/" className="btn1">
+                                  Add to cart
+                                </Link>
+                              </section>
+                            </div>
+                          </div>
+                        </>
+                      ))}
+
+                  {Pro.length === 0 && (
+                    <div className="container mx-auto my-2 mt-5 py-2 bg-white text-center">
+                      <p>No products found for this category.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <Footer />
+    </>
+  );
+};
+
+export default Category;
